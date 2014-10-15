@@ -5,6 +5,7 @@ SRC=src
 OUT=target
 
 wdir:
+	mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(SRC)/wdir.c -o $(OUT)/wdir
 
 .PHONY: clean
