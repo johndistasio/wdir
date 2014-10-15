@@ -177,7 +177,7 @@ main(int argc, char **argv)
                 if (strcmp(cwd, f->fts_path) == 0) {
                     continue;
                 }
-                else if (strcmp(&f->fts_name[0], ".") == 0) {
+                else if (f->fts_name[0] == 46) {
                     continue;
                 }
                 if (verbose) {
