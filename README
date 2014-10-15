@@ -1,0 +1,8 @@
+wdir - a work in progress
+
+This is a dinky tool for clearing the contents of the current working directory. 
+
+Inspired by my habit of doing this:
+
+~$ cd oldtempfir   // oops, typo, that's supposed to be 'dir', not 'fir'
+~$ rm -rf ./*      // :(
