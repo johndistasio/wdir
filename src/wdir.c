@@ -34,6 +34,9 @@ THE SOFTWARE.
 #include <strings.h>
 #include <getopt.h>
 
+#define WDIR_VERSION_MAJOR 0
+#define WDIR_VERSION_MINOR 1
+
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -48,6 +51,7 @@ print_usage(FILE *stream)
     fprintf(stream, "    -u, --no-preserve-home:    wipe user's home\n");
     fprintf(stream, "    -r, --no-preserve-root:    wipe /\n");
     fprintf(stream, "    -f, --force:               don't prompt before wipe\n");
+    fprintf(stream, "    -V, --version:             print the current version and exit\n");
 }
 
 int
@@ -76,11 +80,12 @@ main(int argc, char **argv)
         { "force",              no_argument, 0, 'f' },
         { "verbose",            no_argument, 0, 'v' },
         { "help",               no_argument, 0, 'h' },
+        { "version",            no_argument, 0, 'V' },
         { 0, 0, 0, 0 }
     };
 
     for (;;) {
-        arg = getopt_long(argc, argv, "hvurf", opts, &idx);
+        arg = getopt_long(argc, argv, "hvurfV", opts, &idx);
         
         if (arg == -1) break;
         
@@ -99,6 +104,9 @@ main(int argc, char **argv)
                 break;
             case 'h':
                 print_usage(stdout);
+                exit(EXIT_SUCCESS);
+            case 'V':
+                printf("wdir %d.%d\n", WDIR_VERSION_MAJOR, WDIR_VERSION_MINOR);
                 exit(EXIT_SUCCESS);
             case '?':
                 print_usage(stderr);
@@ -129,7 +137,7 @@ main(int argc, char **argv)
         printf("Current working directory: '%s'\n", cwd);
     }
 
-    if (preserve_root && (strcmp(cwd, "/") == 0)) {
+    if (preserve_root && (!strcmp(cwd, "/"))) {
         fprintf(stderr, "Can't wipe '/' without --no-preserve-root.\n");
         exit(EXIT_FAILURE);
     }
@@ -140,7 +148,7 @@ main(int argc, char **argv)
             perror("getpwuid");
             exit(EXIT_FAILURE);
         } 
-        else if (strcmp(cwd, pw->pw_dir) == 0) {
+        else if (!strcmp(cwd, pw->pw_dir)) {
             fprintf(stderr, "Can't wipe '%s' without --no-preserve-home.\n", cwd);
             exit(EXIT_FAILURE);
         }
@@ -156,8 +164,8 @@ main(int argc, char **argv)
     }
 
     for (;;) {
-
         f = fts_read(fts);
+
         if (errno) {
             perror("fts_read");
             continue;
@@ -174,12 +182,17 @@ main(int argc, char **argv)
                 continue;
             case FTS_F:
             case FTS_DP:
-                if (strcmp(cwd, f->fts_path) == 0) {
+
+                // Ignore the current file if:
+                // 1. It's the current working directory; or
+                // 2. It's a hidden file.
+                if (!strcmp(cwd, f->fts_path)) {
                     continue;
                 }
-                else if (f->fts_name[0] == 46) {
+                else if (f->fts_name[0] == '.') {
                     continue;
                 }
+
                 if (verbose) {
                     printf("Removing %s\n", f->fts_name);
                 }
