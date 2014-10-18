@@ -205,6 +205,8 @@ main(int argc, char **argv)
         }
     }
 
+    fts_close(fts);
+
     exit(EXIT_SUCCESS);
 }
 
