@@ -116,9 +116,7 @@ main(int argc, char **argv)
         }
     }
 
-    getcwd(cwd, PATH_MAX);
-
-    if (cwd == NULL) {
+    if (getcwd(cwd, PATH_MAX)  == NULL) {
         perror("getcwd");
         exit(EXIT_FAILURE);
     }
