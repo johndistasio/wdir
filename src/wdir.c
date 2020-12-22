@@ -1,26 +1,3 @@
-/*
-The MIT License (MIT)
-
-Copyright (c) 2014 John DiStasio
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,8 +11,9 @@ THE SOFTWARE.
 #include <strings.h>
 #include <getopt.h>
 
-#define WDIR_VERSION_MAJOR 0
-#define WDIR_VERSION_MINOR 1
+#define WDIR_VERSION_MAJOR 1
+#define WDIR_VERSION_MINOR 0
+#define WDIR_VERSION_PATCH 0
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -47,7 +25,8 @@ print_usage(FILE *stream)
     fprintf(stream, "Usage: wdir [options]\n");
     fprintf(stream, "Options:\n");
     fprintf(stream, "    -h, --help:                print this message and exit\n");
-    fprintf(stream, "    -v, --verbose:             prints what wdir is doing\n");
+    fprintf(stream, "    -v, --verbose:             print what wdir is doing\n");
+    fprintf(stream, "    -d, --dry-run:             print what wdir would do\n");
     fprintf(stream, "    -u, --no-preserve-home:    wipe user's home\n");
     fprintf(stream, "    -r, --no-preserve-root:    wipe /\n");
     fprintf(stream, "    -f, --force:               don't prompt before wipe\n");
@@ -73,25 +52,30 @@ main(int argc, char **argv)
     bool preserve_root  = true;
     bool force          = true;
     bool verbose        = false;
+    bool dryrun         = false;
 
     static const struct option opts[] = {
         { "no-preserve-home",   no_argument, 0, 'u' },
         { "no-preserve-root",   no_argument, 0, 'r' },
         { "force",              no_argument, 0, 'f' },
         { "verbose",            no_argument, 0, 'v' },
+        { "dry-run",            no_argument, 0, 'd' },
         { "help",               no_argument, 0, 'h' },
         { "version",            no_argument, 0, 'V' },
         { 0, 0, 0, 0 }
     };
 
     for (;;) {
-        arg = getopt_long(argc, argv, "hvurfV", opts, &idx);
-        
+        arg = getopt_long(argc, argv, "hvdurfV", opts, &idx);
+
         if (arg == -1) break;
-        
+
         switch (arg) {
             case 'v':
                 verbose = true;
+                break;
+            case 'd':
+                dryrun = true;
                 break;
             case 'u':
                 preserve_home = false;
@@ -106,7 +90,7 @@ main(int argc, char **argv)
                 print_usage(stdout);
                 exit(EXIT_SUCCESS);
             case 'V':
-                printf("wdir %d.%d\n", WDIR_VERSION_MAJOR, WDIR_VERSION_MINOR);
+                printf("wdir %d.%d.%d\n", WDIR_VERSION_MAJOR, WDIR_VERSION_MINOR, WDIR_VERSION_PATCH);
                 exit(EXIT_SUCCESS);
             case '?':
                 print_usage(stderr);
@@ -131,10 +115,6 @@ main(int argc, char **argv)
         }
     }
 
-    if (verbose) {
-        printf("Current working directory: '%s'\n", cwd);
-    }
-
     if (preserve_root && (!strcmp(cwd, "/"))) {
         fprintf(stderr, "Can't wipe '/' without --no-preserve-root.\n");
         exit(EXIT_FAILURE);
@@ -145,7 +125,7 @@ main(int argc, char **argv)
         if (pw == NULL) {
             perror("getpwuid");
             exit(EXIT_FAILURE);
-        } 
+        }
         else if (!strcmp(cwd, pw->pw_dir)) {
             fprintf(stderr, "Can't wipe '%s' without --no-preserve-home.\n", cwd);
             exit(EXIT_FAILURE);
@@ -186,13 +166,17 @@ main(int argc, char **argv)
                 // 2. It's a hidden file.
                 if (!strcmp(cwd, f->fts_path)) {
                     continue;
+                } else if (f->fts_name[0] == '.') {
+                    continue;
                 }
-                else if (f->fts_name[0] == '.') {
+
+                if (dryrun) {
+                    printf("Would remove %s/%s\n", cwd, f->fts_name);
                     continue;
                 }
 
                 if (verbose) {
-                    printf("Removing %s\n", f->fts_name);
+                    printf("Removing %s/%s\n", cwd, f->fts_name);
                 }
                 if (unlink(f->fts_name)) {
                     perror("unlink");
